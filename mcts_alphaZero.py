@@ -135,6 +135,9 @@ class MCTS(object):
         temp -- temperature parameter in (0, 1] that controls the level of exploration
         Returns:
         the available actions and the corresponding probabilities 
+
+        Here state is board
+        
         """        
         for n in range(self._n_playout):
             state_copy = copy.deepcopy(state)
@@ -174,7 +177,7 @@ class MCTSPlayer(object):
 
     def get_action(self, board, temp=1e-3, return_prob=0):
         sensible_moves = board.availables
-        move_probs = np.zeros(board.width*board.height) # the pi vector returned by MCTS as in the alphaGo Zero paper
+        move_probs = np.zeros(board.actiondim*board.actiondim) # the pi vector returned by MCTS as in the alphaGo Zero paper
         if len(sensible_moves) > 0:
             acts, probs = self.mcts.get_move_probs(board, temp)
             move_probs[list(acts)] = probs         

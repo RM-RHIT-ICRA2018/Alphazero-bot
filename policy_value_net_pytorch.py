@@ -30,24 +30,29 @@ class Net(nn.Module):
         self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
         # action policy layers
         self.act_conv1 = nn.Conv2d(128, 4, kernel_size=1)
-        self.act_fc1 = nn.Linear(4*board_width*board_height, board_width*board_height)
+        self.act_fc1 = nn.Linear(4*board_width*board_height+state_hp_dim+state_time_dim, 16)
+
         # state value layers
         self.val_conv1 = nn.Conv2d(128, 2, kernel_size=1)
-        self.val_fc1 = nn.Linear(2*board_width*board_height, 64)
+        self.val_fc1 = nn.Linear(2*board_width*board_height+state_hp_dim+state_time_dim, 64)
         self.val_fc2 = nn.Linear(64, 1)         
     
-    def forward(self, state_input):
+        #
+    def forward(self, state_pos_input,state_hp,state_time):
         # common layers     
-        x = F.relu(self.conv1(state_input))
+        x = F.relu(self.conv1(state_pos_input))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
         # action policy layers
         x_act = F.relu(self.act_conv1(x))
-        x_act = x_act.view(-1, 4*self.board_width*self.board_height)
+        x_act = torch.cat((x_act.view(-1, 4*self.board_width*self.board_height),
+                            state_hp,state_time),0)
+
         x_act = F.log_softmax(self.act_fc1(x_act))
         # state value layers
         x_val = F.relu(self.val_conv1(x))
-        x_val = x_val.view(-1, 2*self.board_width*self.board_height)
+        x_val = torch.cat((x_val.view(-1, 2*self.board_width*self.board_height),
+                            state_hp,state_time),0)
         x_val = F.relu(self.val_fc1(x_val))
         x_val = F.tanh(self.val_fc2(x_val))
         return x_act, x_val
