@@ -10,9 +10,9 @@ import random
 import numpy as np
 import pickle
 from collections import defaultdict, deque
-from game import Board, Game
+from game_2 import Board, Game
 #from policy_value_net import PolicyValueNet  # Theano and Lasagne
-from policy_value_net_pytorch import PolicyValueNet  # Pytorch
+from policy_value_net_pytorch_2 import PolicyValueNet  # Pytorch
 from mcts_pure import MCTSPlayer as MCTS_Pure
 from mcts_alphaZero import MCTSPlayer
 
@@ -20,10 +20,10 @@ from mcts_alphaZero import MCTSPlayer
 class TrainPipeline():
     def __init__(self, init_model=None):
         # params of the board and the game
-        self.board_width = 6
-        self.board_height = 6
-        self.n_in_row = 4
-        self.board = Board(width=self.board_width, height=self.board_height, n_in_row=self.n_in_row)
+        self.board_width = 80
+        self.board_height = 50
+        #self.n_in_row = 4
+        self.board = Board(width=self.board_width, height=self.board_height)
         self.game = Game(self.board)
         # training params 
         self.learn_rate = 5e-3
@@ -74,7 +74,7 @@ class TrainPipeline():
             winner, play_data = self.game.start_self_play(self.mcts_player, temp=self.temp)
             self.episode_len = len(play_data)
             # augment the data
-            play_data = self.get_equi_data(play_data) 
+            #play_data = self.get_equi_data(play_data) 
             self.data_buffer.extend(play_data)
                         
     def policy_update(self):
@@ -128,16 +128,16 @@ class TrainPipeline():
                 # check the performance of the current model，and save the model params
                 if (i+1) % self.check_freq == 0:
                     print("current self-play batch: {}".format(i+1))
-                    win_ratio = self.policy_evaluate()
-                    net_params = self.policy_value_net.get_policy_param() # get model params
-                    pickle.dump(net_params, open('current_policy.model', 'wb'), pickle.HIGHEST_PROTOCOL) # save model param to file
-                    if win_ratio > self.best_win_ratio: 
-                        print("New best policy!!!!!!!!")
-                        self.best_win_ratio = win_ratio
-                        pickle.dump(net_params, open('best_policy.model', 'wb'), pickle.HIGHEST_PROTOCOL) # update the best_policy
-                        if self.best_win_ratio == 1.0 and self.pure_mcts_playout_num < 5000:
-                            self.pure_mcts_playout_num += 1000
-                            self.best_win_ratio = 0.0
+                    #win_ratio = self.policy_evaluate()
+                    #net_params = self.policy_value_net.get_policy_param() # get model params
+                    #pickle.dump(net_params, open('current_policy.model', 'wb'), pickle.HIGHEST_PROTOCOL) # save model param to file
+                    #if win_ratio > self.best_win_ratio: 
+                    #    print("New best policy!!!!!!!!")
+                    #    self.best_win_ratio = win_ratio
+                    #    pickle.dump(net_params, open('best_policy.model', 'wb'), pickle.HIGHEST_PROTOCOL) # update the best_policy
+                    #    if self.best_win_ratio == 1.0 and self.pure_mcts_playout_num < 5000:
+                    #        self.pure_mcts_playout_num += 1000
+                    #        self.best_win_ratio = 0.0
         except KeyboardInterrupt:
             print('\n\rquit')
     
