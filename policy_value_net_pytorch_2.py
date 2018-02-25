@@ -11,6 +11,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
 import numpy as np
+import pdb
 
 def set_learning_rate(optimizer, lr):
     """Sets the learning rate to the given value"""    
@@ -19,23 +20,23 @@ def set_learning_rate(optimizer, lr):
 
 class Net(nn.Module):
     """policy-value network module"""
-    def __init__(self, board_width, board_height,actiondim):
+    def __init__(self, board_width, board_height,actiondim,totaltime):
         super(Net, self).__init__()
-        '''
+        
         self.board_width = board_width
         self.board_height = board_height
-        '''
+        self.totaltime=totaltime
 
         # common layers
-        self.conv1 = nn.Conv2d(4, 32, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1) 
         self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
         # action policy layers
         self.act_conv1 = nn.Conv2d(128, 4, kernel_size=1)
-        self.act_fc1 = nn.Linear(3*actiondim+total_time, actiondim)
+        self.act_fc1 = nn.Linear(4*board_width*board_height+totaltime, actiondim)
         # state value layers
         self.val_conv1 = nn.Conv2d(128, 2, kernel_size=1)
-        self.val_fc1 = nn.Linear(2*board_width*board_height+total_time, 64)
+        self.val_fc1 = nn.Linear(2*board_width*board_height+totaltime, 64)
         self.val_fc2 = nn.Linear(64, 1)         
     
     def forward(self, state_input,time):
@@ -45,13 +46,19 @@ class Net(nn.Module):
         x = F.relu(self.conv3(x))
         # action policy layers
         x_act = F.relu(self.act_conv1(x))
-        x_act = x_act.view(-1, 3*self.board_width*self.board_height)
-        x_act = torch.cat((x_act,time),0)
+        x_act = x_act.view(-1, 4*self.board_width*self.board_height)
+
+        #pdb.set_trace()
+
+        x_act = torch.cat((x_act,time.view(1,self.totaltime)),1)
+        
+        
+
         x_act = F.log_softmax(self.act_fc1(x_act))
         # state value layers
         x_val = F.relu(self.val_conv1(x))
         x_val = x_val.view(-1, 2*self.board_width*self.board_height)
-        x_val = torch.cat((x_val,time),0)
+        x_val = torch.cat((x_val,time.view(1,self.totaltime)),1)
         x_val = F.relu(self.val_fc1(x_val))
         x_val = F.tanh(self.val_fc2(x_val))
         return x_act, x_val
@@ -59,16 +66,16 @@ class Net(nn.Module):
 
 class PolicyValueNet():
     """policy-value network """
-    def __init__(self, board_width, board_height, net_params=None, use_gpu=True):        
+    def __init__(self, board_width, board_height, actiondim, totaltime,net_params=None, use_gpu=True):        
         self.use_gpu = use_gpu
         self.board_width = board_width
         self.board_height = board_height
         self.l2_const = 1e-4  # coef of l2 penalty 
         # the policy value net module
         if self.use_gpu:
-            self.policy_value_net = Net(board_width, board_height).cuda()       
+            self.policy_value_net = Net(board_width, board_height,actiondim,totaltime).cuda()       
         else:
-            self.policy_value_net = Net(board_width, board_height)
+            self.policy_value_net = Net(board_width, board_height,actiondim,totaltime)
         self.optimizer = optim.Adam(self.policy_value_net.parameters(), weight_decay=self.l2_const)
 
         if net_params:
@@ -97,12 +104,13 @@ class PolicyValueNet():
         output: a list of (action, probability) tuples for each available action and the score of the board state
         """
         legal_positions = board.availables
-        current_state = np.ascontiguousarray(board.current_state().reshape(-1, 4, self.board_width, self.board_height))
+        map_vec,time_vec=board.current_state()
+        map_vec = np.ascontiguousarray(map_vec.reshape(-1, 3, self.board_width, self.board_height))
         if self.use_gpu:
-            log_act_probs, value = self.policy_value_net(Variable(torch.from_numpy(current_state)).cuda().float())
+            log_act_probs, value = self.policy_value_net(Variable(torch.from_numpy(map_vec)).cuda().float(),Variable(torch.from_numpy(time_vec)).cuda().float())
             act_probs = np.exp(log_act_probs.data.cpu().numpy().flatten())        
         else:
-            log_act_probs, value = self.policy_value_net(Variable(torch.from_numpy(current_state)).float())
+            log_act_probs, value = self.policy_value_net(Variable(torch.from_numpy(map_vec)).float(),Variable(torch.from_numpy(time_vec)).float())
             act_probs = np.exp(log_act_probs.data.numpy().flatten())            
         act_probs = zip(legal_positions, act_probs[legal_positions])
         value = value.data[0][0]

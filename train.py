@@ -20,8 +20,10 @@ from mcts_alphaZero import MCTSPlayer
 class TrainPipeline():
     def __init__(self, init_model=None):
         # params of the board and the game
-        self.board_width = 80
-        self.board_height = 50
+        self.board_width = 10
+        self.board_height = 10
+        self.actiondim=24
+        self.totaltime=100
         #self.n_in_row = 4
         self.board = Board(width=self.board_width, height=self.board_height)
         self.game = Game(self.board)
@@ -48,7 +50,7 @@ class TrainPipeline():
             self.policy_value_net = PolicyValueNet(self.board_width, self.board_height, net_params = policy_param)
         else:
             # start training from a new policy-value net
-            self.policy_value_net = PolicyValueNet(self.board_width, self.board_height) 
+            self.policy_value_net = PolicyValueNet(self.board_width, self.board_height,self.actiondim,self.totaltime) 
         self.mcts_player = MCTSPlayer(self.policy_value_net.policy_value_fn, c_puct=self.c_puct, n_playout=self.n_playout, is_selfplay=1)
 
     def get_equi_data(self, play_data):
