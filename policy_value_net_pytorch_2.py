@@ -50,7 +50,7 @@ class Net(nn.Module):
 
         #pdb.set_trace()
 
-        x_act = torch.cat((x_act,time.view(1,self.totaltime)),1)
+        x_act = torch.cat((x_act,time),1)
         
         
 
@@ -58,7 +58,7 @@ class Net(nn.Module):
         # state value layers
         x_val = F.relu(self.val_conv1(x))
         x_val = x_val.view(-1, 2*self.board_width*self.board_height)
-        x_val = torch.cat((x_val,time.view(1,self.totaltime)),1)
+        x_val = torch.cat((x_val,time),1)
         x_val = F.relu(self.val_fc1(x_val))
         x_val = F.tanh(self.val_fc2(x_val))
         return x_act, x_val
@@ -81,19 +81,20 @@ class PolicyValueNet():
         if net_params:
             self.policy_value_net.load_state_dict(net_params)
 
-    def policy_value(self, state_batch):
+    def policy_value(self, state_batch, times_batch):
         """
         input: a batch of states
         output: a batch of action probabilities and state values 
         """
         if self.use_gpu:
             state_batch = Variable(torch.FloatTensor(state_batch).cuda())
-            log_act_probs, value = self.policy_value_net(state_batch)
+            times_batch = Variable(torch.FloatTensor(times_batch).cuda())
+            log_act_probs, value = self.policy_value_net(state_batch, times_batch)
             act_probs = np.exp(log_act_probs.data.cpu().numpy())
             return act_probs, value.data.cpu().numpy()
         else:
             state_batch = Variable(torch.FloatTensor(state_batch))
-            log_act_probs, value = self.policy_value_net(state_batch)
+            log_act_probs, value = self.policy_value_net(state_batch, times_batch)
             act_probs = np.exp(log_act_probs.data.numpy())            
             return act_probs, value.data.numpy()
         
@@ -116,13 +117,14 @@ class PolicyValueNet():
         value = value.data[0][0]
         return act_probs, value
 
-    def train_step(self, state_batch, mcts_probs, winner_batch, lr):
+    def train_step(self, state_batch, times_batch, mcts_probs, winner_batch, lr):
         """perform a training step"""
         # wrap in Variable
         if self.use_gpu:
             state_batch = Variable(torch.FloatTensor(state_batch).cuda())
             mcts_probs = Variable(torch.FloatTensor(mcts_probs).cuda())
             winner_batch = Variable(torch.FloatTensor(winner_batch).cuda())
+            times_batch = Variable(torch.FloatTensor(times_batch).cuda())
         else:
             state_batch = Variable(torch.FloatTensor(state_batch))
             mcts_probs = Variable(torch.FloatTensor(mcts_probs))
@@ -134,7 +136,7 @@ class PolicyValueNet():
         set_learning_rate(self.optimizer, lr)
 
         # forward
-        log_act_probs, value = self.policy_value_net(state_batch)
+        log_act_probs, value = self.policy_value_net(state_batch, times_batch)
         # define the loss = (z - v)^2 - pi^T * log(p) + c||theta||^2 (Note: the L2 penalty is incorporated in optimizer)
         value_loss = F.mse_loss(value.view(-1), winner_batch)
         policy_loss = -torch.mean(torch.sum(mcts_probs*log_act_probs, 1))

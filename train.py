@@ -8,6 +8,7 @@ An implementation of the training pipeline of AlphaZero for Gomoku
 from __future__ import print_function
 import random
 import numpy as np
+import pdb
 import pickle
 from collections import defaultdict, deque
 from game_2 import Board, Game
@@ -23,7 +24,7 @@ class TrainPipeline():
         self.board_width = 10
         self.board_height = 10
         self.actiondim=24
-        self.totaltime=100
+        self.totaltime=50
         #self.n_in_row = 4
         self.board = Board(width=self.board_width, height=self.board_height)
         self.game = Game(self.board)
@@ -34,7 +35,7 @@ class TrainPipeline():
         self.n_playout = 400 # num of simulations for each move
         self.c_puct = 5
         self.buffer_size = 10000
-        self.batch_size = 512 # mini-batch size for training
+        self.batch_size = 40 # mini-batch size for training
         self.data_buffer = deque(maxlen=self.buffer_size)        
         self.play_batch_size = 1 
         self.epochs = 5 # num of train_steps for each update
@@ -84,11 +85,13 @@ class TrainPipeline():
         mini_batch = random.sample(self.data_buffer, self.batch_size)
         state_batch = [data[0] for data in mini_batch]
         mcts_probs_batch = [data[1] for data in mini_batch]
-        winner_batch = [data[2] for data in mini_batch]            
-        old_probs, old_v = self.policy_value_net.policy_value(state_batch) 
+        winner_batch = [data[2] for data in mini_batch]
+        times_batch = [data[3] for data in mini_batch]
+        pdb.set_trace()            
+        old_probs, old_v = self.policy_value_net.policy_value(state_batch,times_batch) 
         for i in range(self.epochs): 
-            loss, entropy = self.policy_value_net.train_step(state_batch, mcts_probs_batch, winner_batch, self.learn_rate*self.lr_multiplier)
-            new_probs, new_v = self.policy_value_net.policy_value(state_batch)
+            loss, entropy = self.policy_value_net.train_step(state_batch, times_batch, mcts_probs_batch, winner_batch, self.learn_rate*self.lr_multiplier)
+            new_probs, new_v = self.policy_value_net.policy_value(state_batch, times_batch)
             kl = np.mean(np.sum(old_probs * (np.log(old_probs + 1e-10) - np.log(new_probs + 1e-10)), axis=1))  
             if kl > self.kl_targ * 4:   # early stopping if D_KL diverges badly
                 break

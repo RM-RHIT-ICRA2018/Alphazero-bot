@@ -20,10 +20,10 @@ class Board(object):
         self.pos=np.zeros([2,3])
         self.width=10
         self.height=10
-        self.hp=[1000,1000]
+        
         self.players = [1, 2] # player1 and player2
-        self.totaltime=100
-        self.time=0
+        self.totaltime=50
+        
         self.actiondim=24
         self.angle_direct=[[-1,0],[0,1],[1,0],[0,-1]]
         self.pos_change=[[0,1,0],[0,-1,0],[1,0,0],[-1,0,0],[1,1,0],[1,-1,0],[-1,1,0],[-1,-1,0],
@@ -31,6 +31,8 @@ class Board(object):
                         [0,1,-1],[0,-1,-1],[1,0,-1],[-1,0,-1],[1,1,-1],[1,-1,-1],[-1,1,-1],[-1,-1,-1]]
 
     def init_board(self, start_player=0):
+        self.hp=[1000,1000]
+        self.time=0
         #if self.width < self.n_in_row or self.height < self.n_in_row:
         #    raise Exception('board width and height can not less than %d' % self.n_in_row)
         self.current_player = self.players[start_player]  # start player        
@@ -101,10 +103,10 @@ class Board(object):
         wall[pos[0],pos[1]]=1
         square_state[2]=wall
 
-        time=np.zeros(self.totaltime)
-        time[self.time]=1
+        time_vec=np.zeros(1,self.totaltime)
+        time_vec[0][self.time]=1
 
-        return square_state,time
+        return square_state,time_vec
 
 
     def check_hit(self,x,y):
@@ -200,7 +202,7 @@ class Board(object):
                 max_i=i
         tie=False
         for i in range(len(self.players)):
-            if not(i==max+i) and (self.hp[i]==max_hp):
+            if (not(i==max_i)) and (self.hp[i]==max_hp):
                 tie=True
                 break
         return tie, max_i
@@ -215,7 +217,7 @@ class Board(object):
         #     return True, -1
         # return False, -1
         # '''
-        if self.time==self.totaltime:
+        if self.time==self.totaltime-1:
             win,winner=self.has_a_winner()
             if win:
                 return True, winner
@@ -307,11 +309,13 @@ class Game(object):
         """
         self.board.init_board()        
         p1, p2 = self.board.players
-        states, mcts_probs, current_players, hp_his = [], [], [], []       
+        states, mcts_probs, current_players, hp_his, times = [], [], [], [], []      
         while(1):
             move, move_probs = player.get_action(self.board, temp=temp, return_prob=1)
             # store the data
-            states.append(self.board.current_state())
+            stt,time=self.board.current_state()
+            states.append(stt)
+            times.append(time)
             hp_his.append(self.board.hp)
             mcts_probs.append(move_probs)
             current_players.append(self.board.current_player)
@@ -331,7 +335,6 @@ class Game(object):
                         else:
                             winners_z[i] = 1
 
-
                     #winners_z[np.array(current_players) == winner] = 1.0
                     #winners_z[np.array(current_players) != winner] = -1.0
                     
@@ -342,5 +345,5 @@ class Game(object):
                         print("Game end. Winner is player:", winner)
                     else:
                         print("Game end. Tie")
-                return winner, list(zip(states, mcts_probs, winners_z))
+                return winner, list(zip(states, mcts_probs, winners_z, times))
             
