@@ -24,7 +24,7 @@ class TrainPipeline():
         self.board_width = 10
         self.board_height = 10
         self.actiondim=24
-        self.totaltime=50
+        self.totaltime=100
         #self.n_in_row = 4
         self.board = Board(width=self.board_width, height=self.board_height)
         self.game = Game(self.board)
@@ -35,16 +35,16 @@ class TrainPipeline():
         self.n_playout = 400 # num of simulations for each move
         self.c_puct = 5
         self.buffer_size = 10000
-        self.batch_size = 49 # mini-batch size for training
+        self.batch_size = 512 # mini-batch size for training
         self.data_buffer = deque(maxlen=self.buffer_size)        
         self.play_batch_size = 1 
         self.epochs = 5 # num of train_steps for each update
         self.kl_targ = 0.025
-        self.check_freq = 50 
+        self.check_freq = 10 
         self.game_batch_num = 1500
         self.best_win_ratio = 0.0
         # num of simulations used for the pure mcts, which is used as the opponent to evaluate the trained policy
-        self.pure_mcts_playout_num = 1000  
+        self.pure_mcts_playout_num = 500  
         if init_model:
             # start training from an initial policy-value net
             policy_param = pickle.load(open(init_model, 'rb')) 
@@ -96,10 +96,10 @@ class TrainPipeline():
             if kl > self.kl_targ * 4:   # early stopping if D_KL diverges badly
                 break
         # adaptively adjust the learning rate
-        if kl > self.kl_targ * 2 and self.lr_multiplier > 0.1:
-            self.lr_multiplier /= 1.5
-        elif kl < self.kl_targ / 2 and self.lr_multiplier < 10:
-            self.lr_multiplier *= 1.5
+        # if kl > self.kl_targ * 2 and self.lr_multiplier > 0.1:
+        #     self.lr_multiplier /= 1.5
+        # elif kl < self.kl_targ / 2 and self.lr_multiplier < 10:
+        #     self.lr_multiplier *= 1.5
             
         explained_var_old =  1 - np.var(np.array(winner_batch) - old_v.flatten())/np.var(np.array(winner_batch))
         explained_var_new = 1 - np.var(np.array(winner_batch) - new_v.flatten())/np.var(np.array(winner_batch))        
@@ -129,20 +129,21 @@ class TrainPipeline():
                 self.collect_selfplay_data(self.play_batch_size)
                 print("batch i:{}, episode_len:{}".format(i+1, self.episode_len))                
                 if len(self.data_buffer) > self.batch_size:
-                    loss, entropy = self.policy_update()                    
+                    for _ in range(3):
+                        loss, entropy = self.policy_update()                    
                 # check the performance of the current model，and save the model params
                 if (i+1) % self.check_freq == 0:
                     print("current self-play batch: {}".format(i+1))
-                    #win_ratio = self.policy_evaluate()
-                    #net_params = self.policy_value_net.get_policy_param() # get model params
-                    #pickle.dump(net_params, open('current_policy.model', 'wb'), pickle.HIGHEST_PROTOCOL) # save model param to file
-                    #if win_ratio > self.best_win_ratio: 
-                    #    print("New best policy!!!!!!!!")
-                    #    self.best_win_ratio = win_ratio
-                    #    pickle.dump(net_params, open('best_policy.model', 'wb'), pickle.HIGHEST_PROTOCOL) # update the best_policy
-                    #    if self.best_win_ratio == 1.0 and self.pure_mcts_playout_num < 5000:
-                    #        self.pure_mcts_playout_num += 1000
-                    #        self.best_win_ratio = 0.0
+                    win_ratio = self.policy_evaluate()
+                    net_params = self.policy_value_net.get_policy_param() # get model params
+                    pickle.dump(net_params, open('current_policy.model', 'wb'), pickle.HIGHEST_PROTOCOL) # save model param to file
+                    if win_ratio > self.best_win_ratio: 
+                        print("New best policy!!!!!!!!")
+                        self.best_win_ratio = win_ratio
+                        pickle.dump(net_params, open('best_policy.model', 'wb'), pickle.HIGHEST_PROTOCOL) # update the best_policy
+                        if self.best_win_ratio == 1.0 and self.pure_mcts_playout_num < 5000:
+                            self.pure_mcts_playout_num += 1000
+                            self.best_win_ratio = 0.0
         except KeyboardInterrupt:
             print('\n\rquit')
     
