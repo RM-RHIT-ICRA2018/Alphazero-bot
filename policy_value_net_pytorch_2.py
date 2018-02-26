@@ -70,6 +70,7 @@ class PolicyValueNet():
         self.use_gpu = use_gpu
         self.board_width = board_width
         self.board_height = board_height
+        self.totaltime=totaltime
         self.l2_const = 1e-4  # coef of l2 penalty 
         # the policy value net module
         if self.use_gpu:
@@ -107,6 +108,7 @@ class PolicyValueNet():
         legal_positions = board.availables
         map_vec,time_vec=board.current_state()
         map_vec = np.ascontiguousarray(map_vec.reshape(-1, 3, self.board_width, self.board_height))
+        time_vec = np.ascontiguousarray(time_vec.reshape(1, self.totaltime))
         if self.use_gpu:
             log_act_probs, value = self.policy_value_net(Variable(torch.from_numpy(map_vec)).cuda().float(),Variable(torch.from_numpy(time_vec)).cuda().float())
             act_probs = np.exp(log_act_probs.data.cpu().numpy().flatten())        

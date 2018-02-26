@@ -147,7 +147,7 @@ class MCTS(object):
         act_visits = [(act, node._n_visits) for act, node in self._root._children.items()]
         #pdb.set_trace()
         acts, visits = zip(*act_visits)
-        print(visits)
+        #print(visits)
         act_probs = softmax(1.0/temp * np.log(np.array(visits) + 1e-10))       
          
         return acts, act_probs

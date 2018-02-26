@@ -103,8 +103,8 @@ class Board(object):
         wall[pos[0],pos[1]]=1
         square_state[2]=wall
 
-        time_vec=np.zeros(1,self.totaltime)
-        time_vec[0][self.time]=1
+        time_vec=np.zeros(self.totaltime)
+        time_vec[self.time]=1
 
         return square_state,time_vec
 

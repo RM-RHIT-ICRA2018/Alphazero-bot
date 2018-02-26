@@ -35,7 +35,7 @@ class TrainPipeline():
         self.n_playout = 400 # num of simulations for each move
         self.c_puct = 5
         self.buffer_size = 10000
-        self.batch_size = 40 # mini-batch size for training
+        self.batch_size = 49 # mini-batch size for training
         self.data_buffer = deque(maxlen=self.buffer_size)        
         self.play_batch_size = 1 
         self.epochs = 5 # num of train_steps for each update
@@ -87,7 +87,7 @@ class TrainPipeline():
         mcts_probs_batch = [data[1] for data in mini_batch]
         winner_batch = [data[2] for data in mini_batch]
         times_batch = [data[3] for data in mini_batch]
-        pdb.set_trace()            
+        #pdb.set_trace()            
         old_probs, old_v = self.policy_value_net.policy_value(state_batch,times_batch) 
         for i in range(self.epochs): 
             loss, entropy = self.policy_value_net.train_step(state_batch, times_batch, mcts_probs_batch, winner_batch, self.learn_rate*self.lr_multiplier)
